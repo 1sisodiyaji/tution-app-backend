@@ -16,6 +16,9 @@ router.put('/reset-password/:resetToken', userController.ResetPassword);
 router.get('/me', protect, userController.GetMe);
 router.patch('/updateLocation', protect, userController.updateLocation);
 router.patch('/update-profile', upload.single('avatar'), userController.UpdateProfile);
-router.get('/all-users', userController.GetAllUsers);
+
+// router.get('/my-reviews', protect, userController.GetMyReviews);
+// router.get('/reviews-given', protect, userController.GetReviewsGiven);
+// router.delete('/review/:reviewId', protect, userController.DeleteMyReview);
 
 module.exports = router;

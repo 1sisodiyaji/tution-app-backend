@@ -7,12 +7,11 @@ const { successResponse, errorResponse } = require('../utils/response');
 const log = require('../config/logger');
 const uploadToCloudinary = require('../config/cloudinary');
 const generateAvatar = require('../utils/generateAvatar');
-const { getOrSetWebsiteUsers } = require('../utils/cacheService');
-
+const { getOrSetWebsiteUsers, del } = require('../utils/cacheService');
 
 exports.Register = async (req, res) => {
   try {
-    const { name, email, password , role } = req.body;
+    const { name, email, password, role } = req.body;
     const userExists = await User.findOne({ email });
     if (userExists && userExists.isEmailVerified) {
       return errorResponse(res, 400, 'Email already registered. Please Login');
@@ -39,7 +38,7 @@ exports.Register = async (req, res) => {
     }
     if (userExists) {
       userExists.name = name;
-       userExists.role = role;
+      userExists.role = role;
       userExists.password = hashedPassword;
       userExists.emailVerificationToken = emailVerificationToken;
       userExists.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000;
@@ -48,10 +47,9 @@ exports.Register = async (req, res) => {
       const newUser = new User({
         name,
         email,
-        role, 
+        role,
         password: hashedPassword,
         isEmailVerified: false,
-    
         emailVerificationToken: emailVerificationToken,
         emailVerificationExpire: Date.now() + 24 * 60 * 60 * 1000,
       });
@@ -148,9 +146,9 @@ exports.Login = async (req, res) => {
     });
     const cookieExpireDays = Number(process.env.COOKIE_EXPIRE);
 
-if (isNaN(cookieExpireDays)) {
-  return errorResponse(res, 500, "COOKIE_EXPIRE must be a number", process.env.COOKIE_EXPIRE);
-}
+    if (isNaN(cookieExpireDays)) {
+      return errorResponse(res, 500, "COOKIE_EXPIRE must be a number", process.env.COOKIE_EXPIRE);
+    }
     const options = {
       expires: new Date(Date.now() + cookieExpireDays * 24 * 60 * 60 * 1000),
       httpOnly: true,
@@ -159,7 +157,7 @@ if (isNaN(cookieExpireDays)) {
     if (process.env.NODE_ENV === 'production') {
       options.secure = true;
     }
-
+    del('Website_User:')
     res
       .status(200)
       .cookie('auth-token', token, options)
@@ -169,10 +167,14 @@ if (isNaN(cookieExpireDays)) {
         user: {
           id: user._id,
           name: user.name,
+          age: user.age,
+          About: user.About,
           email: user.email,
           role: user.role,
           avatar: user.avatar,
-          isGoogleUser: user.isGoogleUser,
+          latitude: user.latitude,
+          longitude: user.longitude,
+          Address: user.Address
         },
       });
   } catch (error) {
@@ -313,18 +315,40 @@ exports.ResetPassword = async (req, res) => {
 };
 exports.GoogleAuth = async (req, res) => {
   try {
-    const { email, name, picture } = req.body;
+    const { email, name, picture, role } = req.body;
 
     if (!email || !name || !picture) {
       return errorResponse(res, 400, 'Please Provide Email , name and Profile Image');
     }
-
+    const validRoles = ['mentor', 'user'];
+    if (role && !validRoles.includes(role)) {
+      return errorResponse(res, 400, 'Invalid role specified');
+    }
     let user = await User.findOne({ email });
+
+    let profileIncomplete = false;
     if (user) {
       if (user.password) {
         return errorResponse(res, 403, 'Your Email id is already used . Please go through Password Verification.');
       }
+      if (!user.role && role) {
+        user.role = role;
+        await user.save();
+      } else if (!user.role && !role) {
+        profileIncomplete = true;
+      }
+
+      if (user.name !== name || user.avatar !== picture) {
+        user.name = name;
+        user.avatar = picture;
+        await user.save();
+      }
+
+
     } else {
+      if (!role) {
+        profileIncomplete = true;
+      }
       user = await User.create({
         email,
         name,
@@ -332,34 +356,41 @@ exports.GoogleAuth = async (req, res) => {
         isGoogleUser: true,
         isEmailVerified: true
       });
+       log.info(`New Google user created: ${email}`);
     }
 
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn:  process.env.JWT_EXPIRE,
+      expiresIn: process.env.JWT_EXPIRE,
     });
 
     const options = {
-      expires: new Date(Date.now() +  process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+      expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
       httpOnly: true,
     };
 
-    if ( process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production') {
       options.secure = true;
     }
-
+    log.info(`Google authentication successful for user: ${email}, profileIncomplete: ${profileIncomplete}`);
     res
       .status(200)
       .cookie('auth-token', token, options)
       .json({
         success: true,
         token,
+        profileIncomplete,
         user: {
           id: user._id,
           name: user.name,
+          age: user.age,
+          About: user.About,
           email: user.email,
           role: user.role,
           avatar: user.avatar,
-          isGoogleUser: user.isGoogleUser,
+          latitude: user.latitude,
+          longitude: user.longitude,
+          Address: user.Address
         },
       });
   } catch (error) {
@@ -436,20 +467,6 @@ exports.UpdateProfile = async (req, res) => {
       500,
       process.env.NODE_ENV === 'production' ? 'Failed to update profile' : `Error: ${error.message}`
     );
-  }
-};
-exports.GetAllUsers = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = 10;
-    const skip = (page - 1) * limit;
-    const user = await getOrSetWebsiteUsers(`page_${page}&limit_${limit}`, async () => {
-      return await User.find({role: 'mentor'}).select ( '-password').skip(skip).limit(limit).lean();
-    });
-    return successResponse(res, 200, 'User Found', user);
-  } catch (error) {
-    log.error('Error in Getting User Data:', error);
-    return errorResponse(res, 500, 'Failed to Get User Data');
   }
 };
 exports.updateLocation = async (req, res) => {

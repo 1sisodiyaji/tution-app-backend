@@ -2,10 +2,10 @@
   "name": "teacher-backend",
   "version": "1.0.0",
   "description": "Backend for teacher management system",
-  "main": "index.js",
+  "main": "Server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node Server.js",
+    "dev": "nodemon Server.js",
     "test": "jest"
   },
   "dependencies": {

@@ -23,6 +23,24 @@ const userSchema = new mongoose.Schema(
         message: 'Please enter a valid email',
       },
     },
+    mobileNumber:{
+      type: Number,
+      maxLength: 10
+    },
+    age: {
+      type: Number,
+      min: [0, 'Age cannot be less than 0'],
+      max: [100, 'Age cannot be more than 100'],
+    },
+    About: {
+      type: String,
+      validate: {
+        validator: function (v) {
+          return v.trim().split(/\s+/).length <= 1000;
+        },
+        message: 'About section cannot exceed 1000 words',
+      },
+    },
     password: {
       type: String,
       required: function () {
@@ -43,7 +61,6 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ['user', 'mentor'],
-      default: 'user',
     },
     isEmailVerified: {
       type: Boolean,
@@ -57,6 +74,9 @@ const userSchema = new mongoose.Schema(
     },
     longitude: {
       type: Number
+    },
+    Address: {
+      type: String
     },
     emailVerificationToken: String,
     emailVerificationExpire: Date,

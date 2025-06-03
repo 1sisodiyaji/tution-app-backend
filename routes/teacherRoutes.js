@@ -1,18 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const {
-  registerTeacher,
-  getTeachers,
-  getTeacherById,
-  updateTeacher,
-  deleteTeacher
-} = require('../controllers/teacherController');
+const teacherController = require('../controllers/teacherController');
 
-router.route('/').post(registerTeacher).get(getTeachers);
-router
-  .route('/:id')
-  .get(getTeacherById)
-  .put(updateTeacher)
-  .delete(deleteTeacher);
+router.get('/all-teachers', teacherController.GetAllMentors);
+router.get('/profile/:id', teacherController.GetMentorById);
 
 module.exports = router; 

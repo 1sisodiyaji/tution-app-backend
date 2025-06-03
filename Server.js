@@ -9,11 +9,10 @@ const cors = require('cors');
 const cluster = require('node:cluster');
 const numCPUs = require('node:os').cpus().length;
 const rateLimit = require('express-rate-limit');
-const log = require('./config/logger');
+const log = require('./config/logger.js');
 const connectDB = require("./config/database.js");
-const userRouter = require('./routes/userRoutes');
-const teacherRoutes = require('./routes/teacherRoutes');
-const reviewRoutes = require('./routes/reviewRoutes.js');
+const userRouter = require('./routes/userRoutes.js');
+const teacherRoutes = require('./routes/teacherRoutes.js');
 require('./cron/EmailCron.js');
 
 if (!cluster.isPrimary) {
@@ -118,7 +117,6 @@ if (!cluster.isPrimary) {
 
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/teachers', teacherRoutes);
-  app.use('/api/v1/reviews', reviewRoutes);
   app.get('/', (req, res) => {  res.send(`Allication is running at http://localhost:${PORT}`);});
   app.listen(PORT, () => {
     log.info(
