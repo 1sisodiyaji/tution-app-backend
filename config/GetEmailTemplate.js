@@ -34,23 +34,7 @@ const getEmailTemplate = (type, data) => {
       
           </div>
         `;
-
-    case 'apiKeyGenerated':
-      return `
-         <div style="max-width: 600px; margin: 0 auto; padding: 10px; font-family: Arial, sans-serif; background-color : #f5f7f5;">
-      
-            <h2>New API Key Generated</h2>
-            <p>Hello ${data.name},</p>
-            <p>Your new API key has been generated:</p>
-            <div style="background-color: #f5f5f5; padding: 12px; border-radius: 4px; margin: 16px 0;">
-              <code style="word-break: break-all;">${data.apiKey}</code>
-            </div>
-            <p>Please keep this key secure and do not share it with anyone.</p>
-            <p>Your previous API key has been invalidated.</p>
-       
-          </div>
-        `;
-
+    
     case 'passwordResetSuccess':
       return `
           <div style="max-width: 600px; margin: 0 auto; padding: 10px; font-family: Arial, sans-serif; background-color : #f5f7f5;">
@@ -88,7 +72,7 @@ const getEmailTemplate = (type, data) => {
 
   <p>If you didn’t send this message, you can safely ignore this email.</p>
 
-  <p style="margin-top: 24px;">Best regards,<br />The CraftFossLabs Team</p>
+  <p style="margin-top: 24px;">Best regards,<br />The Logo Team</p>
 
   <hr style="margin: 24px 0; border: none; border-top: 1px solid #ddd;" />
 
@@ -97,40 +81,6 @@ const getEmailTemplate = (type, data) => {
           </div>
       `;
 
-    case 'taskboard':
-      return `
-           <div style="max-width: 600px; margin: 0 auto; padding: 10px; font-family: Arial, sans-serif; background-color : #f5f7f5;">
-          
-              <h2 style="color: #2c3e50;">TaskBoard Status</h2>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; background-color: #ffffff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
-         
-                  <div style="text-align: center;">
-                    <img src="${data.assignedBy?.avatar || constants.DEFAULT_AVATAR}" alt="${data.assignedBy?.name}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;" />
-                    <p style="margin-top: 8px; font-size: 14px; color: #2c3e50;">${data.assignedBy?.name || 'Assigned By'}</p>
-                  </div>
-    
-                  <div style="flex: 1; text-align: center;">
-                    <hr style="border: none; border-top: 2px solid #3498db; width: 100%; position: relative; top: 50%; margin: 0 8px;" />
-                    <span style="position: relative; top: -12px; font-size: 24px; color: #3498db;">→</span>
-                  </div>
-          
-                  <div style="text-align: center;">
-                    <img src="${data.assignedTo?.avatar || constants.DEFAULT_AVATAR}" alt="${data.assignedTo?.name}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;" />
-                    <p style="margin-top: 8px; font-size: 14px; color: #2c3e50;">${data.assignedTo?.name || 'Assigned To'}</p>
-                  </div>
-              </div>
-              ${data.html}
-               
-              <a href="${data.url}" style="display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-                Go To Your Dashboard
-              </a>
-
-              <hr style="margin: 24px 0; border: none; border-top: 1px solid #ddd;" /> 
-              <small style="color: #777;">This is an automated message. Please do not reply directly to this email.</small>
-           
-          </div>
-      `;
     default:
       return `<p>No template found for email type: ${type}</p>`;
   }

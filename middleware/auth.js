@@ -25,6 +25,9 @@ const protect = async (req, res, next) => {
       if (!user) {
         return res.status(404).json({ status: false, message: 'User not found.' })
       }
+       if(user.isAccountDeactivated){
+              return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+          }
       req.user = user;
       next();
     } catch (err) {

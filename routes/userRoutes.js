@@ -15,10 +15,6 @@ router.put('/change-password', protect, userController.ChangePassword);
 router.put('/reset-password/:resetToken', userController.ResetPassword);
 router.get('/me', protect, userController.GetMe);
 router.patch('/updateLocation', protect, userController.updateLocation);
-router.patch('/update-profile', upload.single('avatar'), userController.UpdateProfile);
-
-// router.get('/my-reviews', protect, userController.GetMyReviews);
-// router.get('/reviews-given', protect, userController.GetReviewsGiven);
-// router.delete('/review/:reviewId', protect, userController.DeleteMyReview);
-
+router.put('/update-profile',protect ,  upload.single('avatar'), userController.UpdateProfile);
+router.post('/delete-profile' , protect ,userController.deactivateAccount );
 module.exports = router;

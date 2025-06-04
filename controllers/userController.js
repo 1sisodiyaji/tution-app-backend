@@ -7,12 +7,16 @@ const { successResponse, errorResponse } = require('../utils/response');
 const log = require('../config/logger');
 const uploadToCloudinary = require('../config/cloudinary');
 const generateAvatar = require('../utils/generateAvatar');
-const { getOrSetWebsiteUsers, del } = require('../utils/cacheService');
+const { del } = require('../utils/cacheService');
+const MentorProfile = require('../models/Mentor');
 
 exports.Register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     const userExists = await User.findOne({ email });
+    if (userExists.isAccountDeactivated) {
+      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+    }
     if (userExists && userExists.isEmailVerified) {
       return errorResponse(res, 400, 'Email already registered. Please Login');
     }
@@ -58,6 +62,23 @@ exports.Register = async (req, res) => {
       if (!savedUser) {
         return errorResponse(res, 500, 'Failed to save user data');
       }
+      if (savedUser.role === 'mentor') {
+        const existingProfile = await MentorProfile.findOne({ userId: savedUser._id });
+        if (!existingProfile) {
+          const mentorProfile = new MentorProfile({
+            userId: savedUser._id,
+            rating: 0,
+            proficiency: '', // You can update later
+            subjects: [],
+            classesOffered: [],
+            qualifications: [],
+            reviews: [],
+            tenthPercentage: savedUser.tenthPercentage || null,
+            twelfthPercentage: savedUser.twelfthPercentage || null
+          });
+          await mentorProfile.save();
+        }
+      }
     }
     return successResponse(res, 200, 'User Created Successfully. Please Verify your Email');
   } catch (error) {
@@ -75,7 +96,9 @@ exports.VerifyEmail = async (req, res) => {
     const isUserPresent = await User.findOne({ email });
 
     if (!isUserPresent) return errorResponse(res, 401, 'User Not Present. Please Register');
-
+    if (isUserPresent.isAccountDeactivated) {
+      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+    }
     if (isUserPresent.isEmailVerified) return successResponse(res, 200, 'User Already Verified. You can Login.');
 
     const user = await User.findOne({
@@ -104,6 +127,9 @@ exports.Login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return errorResponse(res, 401, 'Invalid Credentials');
+    }
+    if (user.isAccountDeactivated) {
+      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
     }
 
     if (user.lockUntil && user.lockUntil > Date.now()) {
@@ -174,7 +200,10 @@ exports.Login = async (req, res) => {
           avatar: user.avatar,
           latitude: user.latitude,
           longitude: user.longitude,
-          Address: user.Address
+          Address: user.Address,
+          tenthPercentage: user.tenthPercentage,
+          twelfthPercentage: user.twelfthPercentage,
+          mobileNumber: user.mobileNumber
         },
       });
   } catch (error) {
@@ -196,6 +225,9 @@ exports.ChangePassword = async (req, res) => {
     if (!user) {
       return errorResponse(res, 404, 'User not Found');
     }
+    if (user.isAccountDeactivated) {
+      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+    }
     const isMatch = await bcrypt.compare(oldPassword, user.password);
     if (!isMatch) {
       return errorResponse(res, 401, 'Invalid Old Password');
@@ -215,7 +247,9 @@ exports.ForgotPassword = async (req, res) => {
     if (!email) return errorResponse(res, 400, 'Please Provide your email Address');
     const user = await User.findOne({ email });
     if (!user) return errorResponse(res, 404, 'No user Found with these credentials');
-
+    if (user.isAccountDeactivated) {
+      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+    }
     if (user.resetPasswordExpire && user.resetPasswordExpire > Date.now()) {
       const timeLeft = Math.ceil((user.resetPasswordExpire - Date.now()) / 1000 / 60);
       return errorResponse(res, 429, `Please wait ${timeLeft} minutes before requesting another reset`);
@@ -331,6 +365,9 @@ exports.GoogleAuth = async (req, res) => {
       if (user.password) {
         return errorResponse(res, 403, 'Your Email id is already used . Please go through Password Verification.');
       }
+      if (user.isAccountDeactivated) {
+        return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+      }
       if (!user.role && role) {
         user.role = role;
         await user.save();
@@ -356,7 +393,24 @@ exports.GoogleAuth = async (req, res) => {
         isGoogleUser: true,
         isEmailVerified: true
       });
-       log.info(`New Google user created: ${email}`);
+      log.info(`New Google user created: ${email}`);
+    }
+    if (user.role === 'mentor') {
+      const existingProfile = await MentorProfile.findOne({ userId: user._id });
+      if (!existingProfile) {
+        const mentorProfile = new MentorProfile({
+          userId: user._id,
+          rating: 0,
+          proficiency: '',
+          subjects: [],
+          classesOffered: [],
+          qualifications: [],
+          reviews: [],
+          tenthPercentage: user.tenthPercentage || null,
+          twelfthPercentage: user.twelfthPercentage || null
+        });
+        await mentorProfile.save();
+      }
     }
 
 
@@ -390,7 +444,10 @@ exports.GoogleAuth = async (req, res) => {
           avatar: user.avatar,
           latitude: user.latitude,
           longitude: user.longitude,
-          Address: user.Address
+          Address: user.Address,
+          tenthPercentage: user.tenthPercentage,
+          twelfthPercentage: user.twelfthPercentage,
+          mobileNumber: user.mobileNumber
         },
       });
   } catch (error) {
@@ -409,6 +466,12 @@ exports.GetMe = async (req, res) => {
       role: user.role,
       avatar: user.avatar,
       isGoogleUser: user.isGoogleUser,
+      latitude: user.latitude,
+      longitude: user.longitude,
+      Address: user.Address,
+      tenthPercentage: user.tenthPercentage,
+      twelfthPercentage: user.twelfthPercentage,
+      mobileNumber: user.mobileNumber
     });
   } catch (error) {
     log.error('Error in Getting User Data:', error);
@@ -417,14 +480,13 @@ exports.GetMe = async (req, res) => {
 };
 exports.UpdateProfile = async (req, res) => {
   try {
-    const { name, email } = req.body;
-    const user = await User.findById(req.user.id);
+    const { name, age, About, mobileNumber, Address, tenthPercentage, twelfthPercentage } = req.body.formData;
+    
+    const user = await User.findById(req.user._id);
     if (!user) {
       return errorResponse(res, 404, 'User not found');
     }
-    if (email !== user.email) {
-      return errorResponse(res, 403, 'Email verification failed');
-    }
+
     if (req.body.password && user.isGoogleUser) {
       return errorResponse(res, 400, 'Google users cannot update password');
     }
@@ -435,15 +497,23 @@ exports.UpdateProfile = async (req, res) => {
       }
       updateFields.name = name.trim();
     }
+    updateFields.age = age || 0;
+    updateFields.About = About || '';
+    updateFields.mobileNumber = mobileNumber || 0;
+    updateFields.Address = Address || '';
+    updateFields.tenthPercentage = tenthPercentage || 0;
+    updateFields.twelfthPercentage = twelfthPercentage || 0;
     if (req.file && req.file.publicPath) {
-      updateFields.avatar = req.file.publicPath;
+      const file = req.file;
+      const address = await uploadToCloudinary(file);
+      updateFields.avatar = address;
     }
-
+    log.info(updateFields);
     if (Object.keys(updateFields).length === 0) {
       return errorResponse(res, 400, 'No changes provided for update');
     }
 
-    const updatedUser = await User.findByIdAndUpdate(req.user.id, updateFields, {
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, updateFields, {
       new: true,
       runValidators: true,
     });
@@ -455,13 +525,20 @@ exports.UpdateProfile = async (req, res) => {
     return successResponse(res, 200, 'Profile updated successfully', {
       id: updatedUser._id,
       name: updatedUser.name,
+      age: updatedUser.age,
+      About: updatedUser.About,
       email: updatedUser.email,
       role: updatedUser.role,
       avatar: updatedUser.avatar,
-      isGoogleUser: updatedUser.isGoogleUser || false,
+      latitude: updatedUser.latitude,
+      longitude: updatedUser.longitude,
+      Address: updatedUser.Address,
+      tenthPercentage: updatedUser.tenthPercentage,
+      twelfthPercentage: updatedUser.twelfthPercentage,
+      mobileNumber: updatedUser.mobileNumber
     });
   } catch (error) {
-    log.error('Error in updating user profile:', error);
+    log.error('Error in updating user profile:', error.message);
     return errorResponse(
       res,
       500,
@@ -522,3 +599,24 @@ exports.updateLocation = async (req, res) => {
     });
   }
 };
+exports.deactivateAccount = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { isAccountDeactivated: true },
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!user) {
+      return errorResponse(res, 404, 'user not found');
+    }
+    res.clearCookie('auth-token');
+    return successResponse(res, 200, "Accound deleted Successfully");
+  } catch (error) {
+    log.error("[Email Deactivate] Failed ", error);
+    return errorResponse(res, 500, "Failed to delete user", error);
+  }
+}

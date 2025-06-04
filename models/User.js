@@ -78,6 +78,16 @@ const userSchema = new mongoose.Schema(
     Address: {
       type: String
     },
+    tenthPercentage:{
+      type: Number
+    },
+    twelfthPercentage:{
+      type:Number
+    },
+    isAccountDeactivated: {
+      type: Boolean,
+      default: false
+    },
     emailVerificationToken: String,
     emailVerificationExpire: Date,
     resetPasswordToken: String,

@@ -9,7 +9,7 @@ const reviewSchema = new mongoose.Schema({
 const classSchema = new mongoose.Schema({
   subject: String,
   standard: [Number],
-  format: String // e.g., 'online', 'offline'
+  format: String
 });
 
 const qualificationSchema = new mongoose.Schema({
@@ -23,12 +23,9 @@ const mentorSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   proficiency: String,
   rating: { type: Number, default: 0 },
-  tenthPercentage: Number,
-  twelfthPercentage: Number,
   subjects: [String],
   classesOffered: [classSchema],
   qualifications: [qualificationSchema],
-  about: String,
   reviews: [reviewSchema]
 }, {
   timestamps: true
