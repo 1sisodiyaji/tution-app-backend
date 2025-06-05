@@ -5,5 +5,4 @@ const protect = require('../middleware/auth');
 
 router.get('/all-teachers', teacherController.GetAllMentors);
 router.get('/profile/:id', teacherController.GetMentorById);
-router.put('/update-profile',protect , teacherController.UpdateMentorProfile);
 module.exports = router; 

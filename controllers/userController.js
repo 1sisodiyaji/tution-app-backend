@@ -14,9 +14,7 @@ exports.Register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     const userExists = await User.findOne({ email });
-    if (userExists.isAccountDeactivated) {
-      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
-    }
+    
     if (userExists && userExists.isEmailVerified) {
       return errorResponse(res, 400, 'Email already registered. Please Login');
     }
@@ -68,13 +66,11 @@ exports.Register = async (req, res) => {
           const mentorProfile = new MentorProfile({
             userId: savedUser._id,
             rating: 0,
-            proficiency: '', // You can update later
+            proficiency: '',
             subjects: [],
             classesOffered: [],
             qualifications: [],
-            reviews: [],
-            tenthPercentage: savedUser.tenthPercentage || null,
-            twelfthPercentage: savedUser.twelfthPercentage || null
+            reviews: []
           });
           await mentorProfile.save();
         }
@@ -405,9 +401,7 @@ exports.GoogleAuth = async (req, res) => {
           subjects: [],
           classesOffered: [],
           qualifications: [],
-          reviews: [],
-          tenthPercentage: user.tenthPercentage || null,
-          twelfthPercentage: user.twelfthPercentage || null
+          reviews: []
         });
         await mentorProfile.save();
       }
@@ -480,7 +474,19 @@ exports.GetMe = async (req, res) => {
 };
 exports.UpdateProfile = async (req, res) => {
   try {
-    const { name, age, About, mobileNumber, Address, tenthPercentage, twelfthPercentage } = req.body.formData;
+    const { 
+      name, 
+      age, 
+      About, 
+      mobileNumber, 
+      Address, 
+      tenthPercentage, 
+      twelfthPercentage, 
+      proficiency,
+      subjects,
+      classesOffered,
+      qualifications
+    } = req.body.formData || req.body;
     
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -490,39 +496,120 @@ exports.UpdateProfile = async (req, res) => {
     if (req.body.password && user.isGoogleUser) {
       return errorResponse(res, 400, 'Google users cannot update password');
     }
+
     const updateFields = {};
+    
+    // Regular user fields validation and assignment
     if (name && name.trim()) {
       if (name.trim().length < 2 || name.trim().length > 50) {
         return errorResponse(res, 400, 'Name must be between 2 and 50 characters');
       }
       updateFields.name = name.trim();
     }
-    updateFields.age = age || 0;
-    updateFields.About = About || '';
-    updateFields.mobileNumber = mobileNumber || 0;
-    updateFields.Address = Address || '';
-    updateFields.tenthPercentage = tenthPercentage || 0;
-    updateFields.twelfthPercentage = twelfthPercentage || 0;
+
+    // Only update fields if they are provided (not undefined)
+    if (age !== undefined) updateFields.age = Number(age) || 0;
+    if (About !== undefined) updateFields.About = About || '';
+    if (mobileNumber !== undefined) {
+      const mobile = Number(mobileNumber);
+      if (mobile && (mobile < 1000000000 || mobile > 9999999999)) {
+        return errorResponse(res, 400, 'Mobile number must be 10 digits');
+      }
+      updateFields.mobileNumber = mobile || 0;
+    }
+    if (Address !== undefined) updateFields.Address = Address || '';
+    if (tenthPercentage !== undefined) {
+      const tenth = Number(tenthPercentage);
+      if (tenth && (tenth < 0 || tenth > 100)) {
+        return errorResponse(res, 400, 'Tenth percentage must be between 0 and 100');
+      }
+      updateFields.tenthPercentage = tenth || 0;
+    }
+    if (twelfthPercentage !== undefined) {
+      const twelfth = Number(twelfthPercentage);
+      if (twelfth && (twelfth < 0 || twelfth > 100)) {
+        return errorResponse(res, 400, 'Twelfth percentage must be between 0 and 100');
+      }
+      updateFields.twelfthPercentage = twelfth || 0;
+    }
+
+    // Handle mentor-specific fields only if user is a mentor
+    if (user.role === 'mentor') {
+      if (proficiency !== undefined) {
+        updateFields.proficiency = proficiency;
+      }
+      
+      if (Array.isArray(subjects)) {
+        updateFields.subjects = subjects.filter(subject => subject && subject.trim());
+      }
+      
+      if (Array.isArray(classesOffered)) {
+        // Validate classesOffered structure
+        const validClasses = classesOffered.filter(classItem => {
+          return (
+            classItem &&
+            typeof classItem === 'object' &&
+            classItem.subject &&
+            classItem.format
+          );
+        });
+        updateFields.classesOffered = validClasses;
+      }
+      
+      if (Array.isArray(qualifications)) {
+        // Validate qualifications structure
+        const validQualifications = qualifications.filter(qual => {
+          return (
+            qual &&
+            typeof qual === 'object' &&
+            qual.degree &&
+            qual.field &&
+            qual.institution
+          );
+        });
+        updateFields.qualifications = validQualifications;
+      }
+    } else {
+      // If non-mentor tries to update mentor fields, return error
+      if (proficiency !== undefined || subjects !== undefined || 
+          classesOffered !== undefined || qualifications !== undefined) {
+        return errorResponse(res, 403, 'Only mentors can update mentor-specific fields');
+      }
+    }
+
+    // Handle file upload for avatar
     if (req.file && req.file.publicPath) {
       const file = req.file;
-      const address = await uploadToCloudinary(file);
-      updateFields.avatar = address;
+      try {
+        const address = await uploadToCloudinary(file);
+        updateFields.avatar = address;
+      } catch (uploadError) {
+        log.error('Error uploading to cloudinary:', uploadError);
+        return errorResponse(res, 500, 'Failed to upload avatar');
+      }
     }
-    log.info(updateFields);
+
+    log.info('Update fields:', updateFields);
+
     if (Object.keys(updateFields).length === 0) {
       return errorResponse(res, 400, 'No changes provided for update');
     }
 
-    const updatedUser = await User.findByIdAndUpdate(req.user._id, updateFields, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id, 
+      updateFields, 
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!updatedUser) {
       return errorResponse(res, 500, 'Failed to update user profile');
     }
 
-    return successResponse(res, 200, 'Profile updated successfully', {
+    // Prepare response data
+    const responseData = {
       id: updatedUser._id,
       name: updatedUser.name,
       age: updatedUser.age,
@@ -536,9 +623,30 @@ exports.UpdateProfile = async (req, res) => {
       tenthPercentage: updatedUser.tenthPercentage,
       twelfthPercentage: updatedUser.twelfthPercentage,
       mobileNumber: updatedUser.mobileNumber
-    });
+    };
+    if (updatedUser.role === 'mentor') {
+      responseData.proficiency = updatedUser.proficiency;
+      responseData.rating = updatedUser.rating;
+      responseData.subjects = updatedUser.subjects;
+      responseData.classesOffered = updatedUser.classesOffered;
+      responseData.qualifications = updatedUser.qualifications;
+      responseData.reviews = updatedUser.reviews;
+    }
+
+    return successResponse(res, 200, 'Profile updated successfully', responseData);
+
   } catch (error) {
     log.error('Error in updating user profile:', error.message);
+    
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(e => e.message);
+      return errorResponse(res, 400, `Validation Error: ${validationErrors.join(', ')}`);
+    }
+    
+    if (error.code === 11000) {
+      return errorResponse(res, 400, 'Duplicate field value entered');
+    }
+
     return errorResponse(
       res,
       500,
@@ -549,16 +657,12 @@ exports.UpdateProfile = async (req, res) => {
 exports.updateLocation = async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
-
-    // Validate inputs
     if (!latitude || !longitude) {
       return res.status(400).json({
         status: 'fail',
         message: 'Please provide both latitude and longitude'
       });
     }
-
-    // Ensure latitude and longitude are valid numbers
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
 
@@ -568,8 +672,6 @@ exports.updateLocation = async (req, res) => {
         message: 'Latitude and longitude must be valid numbers'
       });
     }
-
-    // Update user location
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { latitude: lat, longitude: lng },

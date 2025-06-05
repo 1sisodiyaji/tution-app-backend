@@ -1,5 +1,23 @@
 const mongoose = require('mongoose');
 
+const reviewSchema = new mongoose.Schema({
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  comment: String,
+  rating: { type: Number, min: 1, max: 5 }
+}, { timestamps: true });
+const classSchema = new mongoose.Schema({
+  subject: String,
+  educationLevel: String,
+  specificClasses: [String],
+  format: String
+});
+const qualificationSchema = new mongoose.Schema({
+  degree: String,
+  field: String,
+  institution: String,
+  year: Number
+});
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -23,9 +41,11 @@ const userSchema = new mongoose.Schema(
         message: 'Please enter a valid email',
       },
     },
-    mobileNumber:{
+    mobileNumber: {
       type: Number,
-      maxLength: 10
+      maxLength: 10,
+      min: 1000000000,
+      max: 9999999999
     },
     age: {
       type: Number,
@@ -60,7 +80,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'mentor'],
+      enum: ['user', 'mentor', 'admin'],
     },
     isEmailVerified: {
       type: Boolean,
@@ -78,16 +98,26 @@ const userSchema = new mongoose.Schema(
     Address: {
       type: String
     },
-    tenthPercentage:{
+    tenthPercentage: {
       type: Number
     },
-    twelfthPercentage:{
-      type:Number
+    twelfthPercentage: {
+      type: Number
     },
     isAccountDeactivated: {
       type: Boolean,
       default: false
     },
+    isMentorVerified: {
+      type: Boolean,
+      default: false
+    },
+    proficiency: String,
+    rating: { type: Number, default: 0 },
+    subjects: [String],
+    classesOffered: [classSchema],
+    qualifications: [qualificationSchema],
+    reviews: [reviewSchema],
     emailVerificationToken: String,
     emailVerificationExpire: Date,
     resetPasswordToken: String,

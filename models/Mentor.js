@@ -8,7 +8,8 @@ const reviewSchema = new mongoose.Schema({
 
 const classSchema = new mongoose.Schema({
   subject: String,
-  standard: [Number],
+  educationLevel: String,
+  specificClasses: [String],
   format: String
 });
 
