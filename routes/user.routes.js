@@ -17,4 +17,5 @@ router.get('/me', protect, userController.GetMe);
 router.patch('/updateLocation', protect, userController.updateLocation);
 router.put('/update-profile', protect, upload.single('avatar'), userController.UpdateProfile);
 router.post('/delete-profile', protect, userController.deactivateAccount);
+
 module.exports = router;

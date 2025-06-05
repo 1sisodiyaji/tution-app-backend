@@ -1,14 +1,15 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { sendEmail } = require('../utils/email');
 const bcrypt = require('bcryptjs');
 const { successResponse, errorResponse } = require('../utils/response');
 const log = require('../config/logger');
 const uploadToCloudinary = require('../config/cloudinary');
 const generateAvatar = require('../utils/generateAvatar');
 const { del } = require('../utils/cacheService');
-const MentorProfile = require('../models/Mentor');
+const sendEmailViaWorker = require('../workers/emailDispatcher');
+const { generateUniqueUsername } = require('../utils/GenrateUsername');
+const saveImage = require('../utils/saveImage');
 
 exports.Register = async (req, res) => {
   try {
@@ -19,6 +20,7 @@ exports.Register = async (req, res) => {
       return errorResponse(res, 400, 'Email already registered. Please Login');
     }
 
+    const username = generateUniqueUsername(name);
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const emailVerificationToken = crypto
@@ -27,22 +29,10 @@ exports.Register = async (req, res) => {
       .digest('hex');
 
     const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}?email=${email}`;
-    const options = {
-      email: email,
-      subject: 'Email Verification',
-      message: `Please click on the link to verify your email: ${verificationUrl}`,
-      type: 'verification',
-      data: {
-        name: name,
-        verificationUrl: verificationUrl,
-      },
-    };
-    const mailSending = await sendEmail(options);
-    if (!mailSending) {
-      return errorResponse(res, 503, 'Failed to Send Mail');
-    }
+
     if (userExists) {
       userExists.name = name;
+      userExists.username = username;
       userExists.role = role;
       userExists.password = hashedPassword;
       userExists.emailVerificationToken = emailVerificationToken;
@@ -51,6 +41,7 @@ exports.Register = async (req, res) => {
     } else {
       const newUser = new User({
         name,
+        username,
         email,
         role,
         password: hashedPassword,
@@ -63,23 +54,23 @@ exports.Register = async (req, res) => {
       if (!savedUser) {
         return errorResponse(res, 500, 'Failed to save user data');
       }
-      if (savedUser.role === 'mentor') {
-        const existingProfile = await MentorProfile.findOne({ userId: savedUser._id });
-        if (!existingProfile) {
-          const mentorProfile = new MentorProfile({
-            userId: savedUser._id,
-            rating: 0,
-            proficiency: '',
-            subjects: [],
-            classesOffered: [],
-            qualifications: [],
-            reviews: [],
-          });
-          await mentorProfile.save();
-        }
-      }
     }
-    return successResponse(res, 200, 'User Created Successfully. Please Verify your Email');
+    successResponse(res, 200, 'User Created Successfully. Please Verify your Email');
+
+    const options = {
+      email: email,
+      subject: 'Email Verification',
+      message: `Please click on the link to verify your email: ${verificationUrl}`,
+      type: 'verification',
+      data: {
+        name: name,
+        verificationUrl: verificationUrl,
+      },
+    };
+    const mailSending = await sendEmailViaWorker(options);
+    if (!mailSending) {
+      return errorResponse(res, 503, 'Failed to Send Mail');
+    }
   } catch (error) {
     log.error('Error in Registering User:', error);
     return errorResponse(res, 500, 'Failed to Create User Account');
@@ -153,7 +144,7 @@ exports.Login = async (req, res) => {
         'Pleae use Google Login Button as you have register through google ID'
       );
     }
-    const isMatch = bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       user.loginAttempts += 1;
@@ -164,12 +155,12 @@ exports.Login = async (req, res) => {
 
       await user.save();
 
-      return errorResponse(res, 401, 'Invalid Cedentials');
+      return errorResponse(res, 401, 'Invalid Credentials');
     }
-
-    if (!user.avatar || user.avatar.trim() === '') {
-      const file = generateAvatar(user.name, '#000000');
-      const address = await uploadToCloudinary(file);
+    log.info('user.avatar ', user.avatar);
+    if (!user.avatar) {
+      const file = generateAvatar(user.name, '#9C4DF4');
+      const address = await saveImage(file, user.name, 'profile');
       user.avatar = address;
     }
     user.loginAttempts = 0;
@@ -298,15 +289,12 @@ exports.ForgotPassword = async (req, res) => {
           expiryTime: '10 minutes',
         },
       };
-      const mailSending = await sendEmail(options);
+
+      successResponse(res, 200, 'Password Reset Link Sent to your Email. Please Check your Email');
+      const mailSending = await sendEmailViaWorker(options);
       if (!mailSending) {
         return errorResponse(res, 503, 'Failed to send Mail');
       }
-      return successResponse(
-        res,
-        200,
-        'Password Reset Link Sent to your Email. Please Check your Email'
-      );
     } catch (error) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
@@ -363,13 +351,10 @@ exports.ResetPassword = async (req, res) => {
         },
       };
 
-      const mailSending = await sendEmail(options);
+      successResponse(res, 200, 'Password Reset Successfully. Please Login with your new Password');
+
+      const mailSending = await sendEmailViaWorker(options);
       if (!mailSending) return errorResponse(res, 503, 'Failed to send Email');
-      return successResponse(
-        res,
-        200,
-        'Password Reset Successfully. Please Login with your new Password'
-      );
     } catch (error) {
       log.error('Password reset confirmation email failed to send', error);
       return successResponse(
@@ -390,7 +375,7 @@ exports.GoogleAuth = async (req, res) => {
     if (!email || !name || !picture) {
       return errorResponse(res, 400, 'Please Provide Email , name and Profile Image');
     }
-    const validRoles = ['mentor', 'user'];
+    const validRoles = ['mentor', 'user', 'admin'];
     if (role && !validRoles.includes(role)) {
       return errorResponse(res, 400, 'Invalid role specified');
     }
@@ -436,21 +421,6 @@ exports.GoogleAuth = async (req, res) => {
         isEmailVerified: true,
       });
       log.info(`New Google user created: ${email}`);
-    }
-    if (user.role === 'mentor') {
-      const existingProfile = await MentorProfile.findOne({ userId: user._id });
-      if (!existingProfile) {
-        const mentorProfile = new MentorProfile({
-          userId: user._id,
-          rating: 0,
-          proficiency: '',
-          subjects: [],
-          classesOffered: [],
-          qualifications: [],
-          reviews: [],
-        });
-        await mentorProfile.save();
-      }
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
@@ -545,16 +515,7 @@ exports.UpdateProfile = async (req, res) => {
     }
 
     const updateFields = {};
-
-    // Regular user fields validation and assignment
-    if (name && name.trim()) {
-      if (name.trim().length < 2 || name.trim().length > 50) {
-        return errorResponse(res, 400, 'Name must be between 2 and 50 characters');
-      }
-      updateFields.name = name.trim();
-    }
-
-    // Only update fields if they are provided (not undefined)
+    if (name !== undefined) updateFields.name = name || '';
     if (age !== undefined) updateFields.age = Number(age) || 0;
     if (About !== undefined) updateFields.About = About || '';
     if (mobileNumber !== undefined) {
@@ -591,7 +552,6 @@ exports.UpdateProfile = async (req, res) => {
       }
 
       if (Array.isArray(classesOffered)) {
-        // Validate classesOffered structure
         const validClasses = classesOffered.filter((classItem) => {
           return (
             classItem && typeof classItem === 'object' && classItem.subject && classItem.format
@@ -601,14 +561,12 @@ exports.UpdateProfile = async (req, res) => {
       }
 
       if (Array.isArray(qualifications)) {
-        // Validate qualifications structure
         const validQualifications = qualifications.filter((qual) => {
           return qual && typeof qual === 'object' && qual.degree && qual.field && qual.institution;
         });
         updateFields.qualifications = validQualifications;
       }
     } else {
-      // If non-mentor tries to update mentor fields, return error
       if (
         proficiency !== undefined ||
         subjects !== undefined ||
@@ -619,11 +577,10 @@ exports.UpdateProfile = async (req, res) => {
       }
     }
 
-    // Handle file upload for avatar
     if (req.file && req.file.publicPath) {
       const file = req.file;
       try {
-        const address = await uploadToCloudinary(file);
+        const address = await saveImage(file, user.name, 'profile');
         updateFields.avatar = address;
       } catch (uploadError) {
         log.error('Error uploading to cloudinary:', uploadError);
@@ -646,7 +603,6 @@ exports.UpdateProfile = async (req, res) => {
       return errorResponse(res, 500, 'Failed to update user profile');
     }
 
-    // Prepare response data
     const responseData = {
       id: updatedUser._id,
       name: updatedUser.name,

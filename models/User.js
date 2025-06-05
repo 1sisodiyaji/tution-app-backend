@@ -30,6 +30,13 @@ const userSchema = new mongoose.Schema(
       minLength: [2, 'Name should have at least 2 characters'],
       trim: true,
     },
+    username: {
+      type: String,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
     email: {
       type: String,
       required: [true, 'Please enter your email'],

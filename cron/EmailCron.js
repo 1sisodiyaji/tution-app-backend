@@ -11,7 +11,7 @@ async function RetryEmail() {
       const retryData = get(key);
       if (!retryData) continue;
 
-      const { to, subject, html, text, retries } = retryData;
+      const { to, subject, text, retries } = retryData;
 
       if (retries >= 3) {
         log.warn(`[MAX RETRIES REACHED]: ${key}, deleting from cache`);

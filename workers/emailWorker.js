@@ -1,11 +1,12 @@
-const { parentPort } = require('worker_threads');
 const { sendEmail } = require('../utils/email');
 
-parentPort.on('message', async (options) => {
+process.on('message', async (options) => {
   try {
     const result = await sendEmail(options);
-    parentPort.postMessage({ success: true, result });
+    process.send({ status: 'success', result });
   } catch (error) {
-    parentPort.postMessage({ success: false, error: error.message });
+    process.send({ status: 'error', error: error.message });
+  } finally {
+    process.exit(0);
   }
 });
