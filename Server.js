@@ -13,6 +13,7 @@ const log = require('./config/logger.js');
 const connectDB = require('./config/database.js');
 const userRouter = require('./routes/user.routes.js');
 const teacherRoutes = require('./routes/mentor.routes.js');
+const path = require('path');
 require('./cron/EmailCron.js');
 
 if (!cluster.isPrimary) {
@@ -125,7 +126,14 @@ if (!cluster.isPrimary) {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
-
+  app.use(
+    '/uploads',
+    (req, res, next) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      next();
+    },
+    express.static(path.join(__dirname, 'uploads'))
+  );
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/teachers', teacherRoutes);
   app.get('/', (req, res) => {

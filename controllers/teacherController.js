@@ -28,7 +28,7 @@ exports.GetAllMentors = async (req, res) => {
 
     const mentors = await User.find(filter)
       .select(
-        'name avatar rating proficiency latitude longitude subjects classesOffered qualifications reviews'
+        'name avatar username rating proficiency latitude longitude subjects classesOffered qualifications reviews'
       )
       .populate('reviews.studentId', 'name avatar')
       .sort({ rating: -1, createdAt: -1 })
@@ -56,15 +56,15 @@ exports.GetAllMentors = async (req, res) => {
     });
   }
 };
-exports.GetMentorById = async (req, res) => {
+exports.GetMentorByUserName = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { username } = req.params;
 
-    const mentor = await User.findById(id)
-      .where({
-        role: 'mentor',
-        isAccountDeactivated: false,
-      })
+    const mentor = await User.User.findOn({
+      username: username.toLowerCase(),
+      role: 'mentor',
+      isAccountDeactivated: false,
+    })
       .select('-password -emailVerificationToken -resetPasswordToken -loginAttempts -lockUntil')
       .populate('reviews.studentId', 'name avatar');
 

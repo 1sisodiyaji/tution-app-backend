@@ -4,7 +4,6 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { successResponse, errorResponse } = require('../utils/response');
 const log = require('../config/logger');
-const uploadToCloudinary = require('../config/cloudinary');
 const generateAvatar = require('../utils/generateAvatar');
 const { del } = require('../utils/cacheService');
 const sendEmailViaWorker = require('../workers/emailDispatcher');
@@ -157,7 +156,6 @@ exports.Login = async (req, res) => {
 
       return errorResponse(res, 401, 'Invalid Credentials');
     }
-    log.info('user.avatar ', user.avatar);
     if (!user.avatar) {
       const file = generateAvatar(user.name, '#9C4DF4');
       const address = await saveImage(file, user.name, 'profile');
@@ -196,6 +194,7 @@ exports.Login = async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
+          username: user.username,
           age: user.age,
           About: user.About,
           email: user.email,
@@ -413,9 +412,11 @@ exports.GoogleAuth = async (req, res) => {
       if (!role) {
         profileIncomplete = true;
       }
+      const username = generateUniqueUsername(name);
       user = await User.create({
         email,
         name,
+        username,
         avatar: picture,
         isGoogleUser: true,
         isEmailVerified: true,
@@ -448,6 +449,7 @@ exports.GoogleAuth = async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
+          username: user.username,
           age: user.age,
           About: user.About,
           email: user.email,
@@ -473,6 +475,7 @@ exports.GetMe = async (req, res) => {
     return successResponse(res, 200, 'User Found', {
       id: user._id,
       name: user.name,
+      username: username,
       email: user.email,
       role: user.role,
       avatar: user.avatar,
@@ -514,6 +517,9 @@ exports.UpdateProfile = async (req, res) => {
       return errorResponse(res, 400, 'Google users cannot update password');
     }
 
+    log.info(age);
+    log.info(req.body.formData);
+
     const updateFields = {};
     if (name !== undefined) updateFields.name = name || '';
     if (age !== undefined) updateFields.age = Number(age) || 0;
@@ -541,7 +547,6 @@ exports.UpdateProfile = async (req, res) => {
       updateFields.twelfthPercentage = twelfth || 0;
     }
 
-    // Handle mentor-specific fields only if user is a mentor
     if (user.role === 'mentor') {
       if (proficiency !== undefined) {
         updateFields.proficiency = proficiency;
@@ -567,13 +572,34 @@ exports.UpdateProfile = async (req, res) => {
         updateFields.qualifications = validQualifications;
       }
     } else {
-      if (
-        proficiency !== undefined ||
-        subjects !== undefined ||
-        classesOffered !== undefined ||
-        qualifications !== undefined
-      ) {
-        return errorResponse(res, 403, 'Only mentors can update mentor-specific fields');
+      const restrictedFields = {};
+
+      if (proficiency !== undefined) {
+        restrictedFields.proficiency = proficiency;
+      }
+
+      if (Array.isArray(subjects)) {
+        restrictedFields.subjects = subjects;
+      }
+
+      if (Array.isArray(classesOffered)) {
+        restrictedFields.classesOffered = classesOffered;
+      }
+
+      if (Array.isArray(qualifications)) {
+        restrictedFields.qualifications = qualifications;
+      }
+
+      if (Object.keys(restrictedFields).length > 0) {
+        return errorResponse(
+          res,
+          403,
+          `Only mentors can update mentor-specific fields. Restricted fields provided: ${JSON.stringify(
+            restrictedFields,
+            null,
+            2
+          )}`
+        );
       }
     }
 
@@ -606,6 +632,7 @@ exports.UpdateProfile = async (req, res) => {
     const responseData = {
       id: updatedUser._id,
       name: updatedUser.name,
+      username: updatedUser.username,
       age: updatedUser.age,
       About: updatedUser.About,
       email: updatedUser.email,

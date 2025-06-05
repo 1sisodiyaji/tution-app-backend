@@ -3,6 +3,6 @@ const router = express.Router();
 const teacherController = require('../controllers/teacherController');
 
 router.get('/all-teachers', teacherController.GetAllMentors);
-router.get('/profile/:id', teacherController.GetMentorById);
+router.get('/profile/:username', teacherController.GetMentorByUserName);
 
 module.exports = router;
