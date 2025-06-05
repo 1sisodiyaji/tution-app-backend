@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); 
+const User = require('../models/User');
 const { getOrSetUser } = require('../utils/cacheService');
 
 const protect = async (req, res, next) => {
@@ -13,7 +13,9 @@ const protect = async (req, res, next) => {
     }
 
     if (!token) {
-      return res.status(403).json({ status: false, message: 'Not authorized to access this route.' })
+      return res
+        .status(403)
+        .json({ status: false, message: 'Not authorized to access this route.' });
     }
 
     try {
@@ -23,15 +25,19 @@ const protect = async (req, res, next) => {
       });
 
       if (!user) {
-        return res.status(404).json({ status: false, message: 'User not found.' })
+        return res.status(404).json({ status: false, message: 'User not found.' });
       }
-       if(user.isAccountDeactivated){
-              return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
-          }
+      if (user.isAccountDeactivated) {
+        return errorResponse(
+          res,
+          403,
+          'Illegal Access , Account has been terminated , Please use another email'
+        );
+      }
       req.user = user;
       next();
     } catch (err) {
-      return res.status(401).json({ status: false, message: 'Token is invalid or expired' })
+      return res.status(401).json({ status: false, message: 'Token is invalid or expired' });
     }
   } catch (error) {
     next(error);

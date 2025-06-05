@@ -1,5 +1,5 @@
 require('dotenv').config();
-const express = require("express");
+const express = require('express');
 const helmet = require('helmet');
 const xss = require('xss-clean');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -10,7 +10,7 @@ const cluster = require('node:cluster');
 const numCPUs = require('node:os').cpus().length;
 const rateLimit = require('express-rate-limit');
 const log = require('./config/logger.js');
-const connectDB = require("./config/database.js");
+const connectDB = require('./config/database.js');
 const userRouter = require('./routes/userRoutes.js');
 const teacherRoutes = require('./routes/teacherRoutes.js');
 require('./cron/EmailCron.js');
@@ -66,7 +66,7 @@ if (!cluster.isPrimary) {
         log.warn(`[CORS] Blocked origin: ${origin}`);
         return callback(new Error('Not allowed by CORS'));
       },
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ,'PATCH'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization'],
     })
@@ -77,10 +77,17 @@ if (!cluster.isPrimary) {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const path = req.originalUrl;
     const method = req.method;
-    const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+    const timestamp = new Date().toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour12: true,
+    });
     log.http(`${ip} , ${method} , ${path}, at the ${timestamp}`);
     if (isProduction) {
-      if (userAgent.toLowerCase().includes('postman') || ip.includes('127.0.0.1') || ip.includes('::1')) {
+      if (
+        userAgent.toLowerCase().includes('postman') ||
+        ip.includes('127.0.0.1') ||
+        ip.includes('::1')
+      ) {
         return res.status(403).json({ message: 'Access denied in production mode' });
       }
     }
@@ -89,7 +96,11 @@ if (!cluster.isPrimary) {
   app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization', 'Content-Disposition');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization',
+      'Content-Disposition'
+    );
     res.header('Access-Control-Allow-Credentials', 'true');
     res.sendStatus(200);
   });
@@ -117,7 +128,9 @@ if (!cluster.isPrimary) {
 
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/teachers', teacherRoutes);
-  app.get('/', (req, res) => {  res.send(`Allication is running at http://localhost:${PORT}`);});
+  app.get('/', (req, res) => {
+    res.send(`Allication is running at http://localhost:${PORT}`);
+  });
   app.listen(PORT, () => {
     log.info(
       `Worker ${process.pid} started - Server running in ${process.env.NODE_ENV} mode on port http://localhost:${PORT}`

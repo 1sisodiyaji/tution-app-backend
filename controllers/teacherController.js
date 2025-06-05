@@ -7,14 +7,14 @@ exports.GetAllMentors = async (req, res) => {
   try {
     const { page = 1, limit = 10, subject, locality, minRating, standard, format } = req.query;
     const filter = {
-       role: 'mentor',
-      isAccountDeactivated: false
+      role: 'mentor',
+      isAccountDeactivated: false,
     };
     if (subject) {
       filter.subjects = { $in: [subject] };
     }
     if (locality) {
-      filter.Address = { $regex: locality, $options: 'i' }; 
+      filter.Address = { $regex: locality, $options: 'i' };
     }
     if (minRating) {
       filter.rating = { $gte: parseFloat(minRating) };
@@ -27,8 +27,10 @@ exports.GetAllMentors = async (req, res) => {
     }
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const mentors = await User.find(filter)
-      .select('name avatar rating proficiency latitude longitude subjects classesOffered qualifications reviews')
+    const mentors = await User.find(filter)
+      .select(
+        'name avatar rating proficiency latitude longitude subjects classesOffered qualifications reviews'
+      )
       .populate('reviews.studentId', 'name avatar')
       .sort({ rating: -1, createdAt: -1 })
       .skip(skip)
@@ -44,14 +46,14 @@ exports.GetAllMentors = async (req, res) => {
         pages: Math.ceil(total / parseInt(limit)),
         total,
         hasNext: skip + mentors.length < total,
-        hasPrev: parseInt(page) > 1
-      }
+        hasPrev: parseInt(page) > 1,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Server Error',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -62,21 +64,21 @@ exports.GetMentorById = async (req, res) => {
     const mentor = await User.findById(id)
       .where({
         role: 'mentor',
-        isAccountDeactivated: false
+        isAccountDeactivated: false,
       })
       .select('-password -emailVerificationToken -resetPasswordToken -loginAttempts -lockUntil')
       .populate('reviews.studentId', 'name avatar');
 
-     if (!mentor) {
+    if (!mentor) {
       return res.status(404).json({
         success: false,
-        message: "Mentor not found"
+        message: 'Mentor not found',
       });
     }
-    return successResponse(res, 200, "Fetched Succesfully", mentor)
+    return successResponse(res, 200, 'Fetched Succesfully', mentor);
   } catch (error) {
-    log.error("Failed to fetch the USer Details", error.message);
-    return errorResponse(res, 500, "Failed to Fetch", error);
+    log.error('Failed to fetch the USer Details', error.message);
+    return errorResponse(res, 500, 'Failed to Fetch', error);
   }
 };
 // exports.UpdateMentorProfile = async (req, res) => {
@@ -124,15 +126,15 @@ exports.GetMentorById = async (req, res) => {
 
 //    if (Object.keys(userUpdates).length > 0) {
 //     log.info(`[UpdateMentorProfile] Updating user fields for ${userId}:`, userUpdates);
-//     const updatedUser = await User.findByIdAndUpdate(userId, userUpdates, { 
-//       new: true, 
-//       runValidators: true 
+//     const updatedUser = await User.findByIdAndUpdate(userId, userUpdates, {
+//       new: true,
+//       runValidators: true
 //     });
-    
+
 //     if (!updatedUser) {
-//       return res.status(400).json({ 
-//         success: false, 
-//         message: 'Failed to update user profile' 
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Failed to update user profile'
 //       });
 //     }
 //   }
@@ -184,7 +186,6 @@ exports.GetMentorById = async (req, res) => {
 //     });
 //   }
 // };
-
 
 // Add review to mentor
 // const AddReview = async (req, res) => {

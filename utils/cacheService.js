@@ -55,5 +55,7 @@ module.exports = {
   set,
   del,
   flush,
-  keys,getOrSetUser ,getOrSetWebsiteUsers
+  keys,
+  getOrSetUser,
+  getOrSetWebsiteUsers,
 };

@@ -14,14 +14,17 @@ exports.Register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     const userExists = await User.findOne({ email });
-    
+
     if (userExists && userExists.isEmailVerified) {
       return errorResponse(res, 400, 'Email already registered. Please Login');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    const emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const emailVerificationToken = crypto
+      .createHash('sha256')
+      .update(verificationToken)
+      .digest('hex');
 
     const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}?email=${email}`;
     const options = {
@@ -70,7 +73,7 @@ exports.Register = async (req, res) => {
             subjects: [],
             classesOffered: [],
             qualifications: [],
-            reviews: []
+            reviews: [],
           });
           await mentorProfile.save();
         }
@@ -93,9 +96,14 @@ exports.VerifyEmail = async (req, res) => {
 
     if (!isUserPresent) return errorResponse(res, 401, 'User Not Present. Please Register');
     if (isUserPresent.isAccountDeactivated) {
-      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+      return errorResponse(
+        res,
+        403,
+        'Illegal Access , Account has been terminated , Please use another email'
+      );
     }
-    if (isUserPresent.isEmailVerified) return successResponse(res, 200, 'User Already Verified. You can Login.');
+    if (isUserPresent.isEmailVerified)
+      return successResponse(res, 200, 'User Already Verified. You can Login.');
 
     const user = await User.findOne({
       emailVerificationToken: crypto.createHash('sha256').update(token).digest('hex'),
@@ -125,7 +133,11 @@ exports.Login = async (req, res) => {
       return errorResponse(res, 401, 'Invalid Credentials');
     }
     if (user.isAccountDeactivated) {
-      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+      return errorResponse(
+        res,
+        403,
+        'Illegal Access , Account has been terminated , Please use another email'
+      );
     }
 
     if (user.lockUntil && user.lockUntil > Date.now()) {
@@ -135,7 +147,11 @@ exports.Login = async (req, res) => {
       return errorResponse(res, 403, 'Please Verify Your Email');
     }
     if (user.isGoogleUser) {
-      return errorResponse(res, 401, 'Pleae use Google Login Button as you have register through google ID');
+      return errorResponse(
+        res,
+        401,
+        'Pleae use Google Login Button as you have register through google ID'
+      );
     }
     const isMatch = bcrypt.compare(password, user.password);
 
@@ -169,7 +185,7 @@ exports.Login = async (req, res) => {
     const cookieExpireDays = Number(process.env.COOKIE_EXPIRE);
 
     if (isNaN(cookieExpireDays)) {
-      return errorResponse(res, 500, "COOKIE_EXPIRE must be a number", process.env.COOKIE_EXPIRE);
+      return errorResponse(res, 500, 'COOKIE_EXPIRE must be a number', process.env.COOKIE_EXPIRE);
     }
     const options = {
       expires: new Date(Date.now() + cookieExpireDays * 24 * 60 * 60 * 1000),
@@ -179,7 +195,7 @@ exports.Login = async (req, res) => {
     if (process.env.NODE_ENV === 'production') {
       options.secure = true;
     }
-    del('Website_User:')
+    del('Website_User:');
     res
       .status(200)
       .cookie('auth-token', token, options)
@@ -199,7 +215,7 @@ exports.Login = async (req, res) => {
           Address: user.Address,
           tenthPercentage: user.tenthPercentage,
           twelfthPercentage: user.twelfthPercentage,
-          mobileNumber: user.mobileNumber
+          mobileNumber: user.mobileNumber,
         },
       });
   } catch (error) {
@@ -222,7 +238,11 @@ exports.ChangePassword = async (req, res) => {
       return errorResponse(res, 404, 'User not Found');
     }
     if (user.isAccountDeactivated) {
-      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+      return errorResponse(
+        res,
+        403,
+        'Illegal Access , Account has been terminated , Please use another email'
+      );
     }
     const isMatch = await bcrypt.compare(oldPassword, user.password);
     if (!isMatch) {
@@ -244,11 +264,19 @@ exports.ForgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return errorResponse(res, 404, 'No user Found with these credentials');
     if (user.isAccountDeactivated) {
-      return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+      return errorResponse(
+        res,
+        403,
+        'Illegal Access , Account has been terminated , Please use another email'
+      );
     }
     if (user.resetPasswordExpire && user.resetPasswordExpire > Date.now()) {
       const timeLeft = Math.ceil((user.resetPasswordExpire - Date.now()) / 1000 / 60);
-      return errorResponse(res, 429, `Please wait ${timeLeft} minutes before requesting another reset`);
+      return errorResponse(
+        res,
+        429,
+        `Please wait ${timeLeft} minutes before requesting another reset`
+      );
     }
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
@@ -274,7 +302,11 @@ exports.ForgotPassword = async (req, res) => {
       if (!mailSending) {
         return errorResponse(res, 503, 'Failed to send Mail');
       }
-      return successResponse(res, 200, 'Password Reset Link Sent to your Email. Please Check your Email');
+      return successResponse(
+        res,
+        200,
+        'Password Reset Link Sent to your Email. Please Check your Email'
+      );
     } catch (error) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
@@ -333,10 +365,18 @@ exports.ResetPassword = async (req, res) => {
 
       const mailSending = await sendEmail(options);
       if (!mailSending) return errorResponse(res, 503, 'Failed to send Email');
-      return successResponse(res, 200, 'Password Reset Successfully. Please Login with your new Password');
+      return successResponse(
+        res,
+        200,
+        'Password Reset Successfully. Please Login with your new Password'
+      );
     } catch (error) {
       log.error('Password reset confirmation email failed to send', error);
-      return successResponse(res, 200, 'Password Reset Successfully. But failed to send confirmation email');
+      return successResponse(
+        res,
+        200,
+        'Password Reset Successfully. But failed to send confirmation email'
+      );
     }
   } catch (error) {
     log.error('Password reset failed', error);
@@ -359,10 +399,18 @@ exports.GoogleAuth = async (req, res) => {
     let profileIncomplete = false;
     if (user) {
       if (user.password) {
-        return errorResponse(res, 403, 'Your Email id is already used . Please go through Password Verification.');
+        return errorResponse(
+          res,
+          403,
+          'Your Email id is already used . Please go through Password Verification.'
+        );
       }
       if (user.isAccountDeactivated) {
-        return errorResponse(res, 403, 'Illegal Access , Account has been terminated , Please use another email');
+        return errorResponse(
+          res,
+          403,
+          'Illegal Access , Account has been terminated , Please use another email'
+        );
       }
       if (!user.role && role) {
         user.role = role;
@@ -376,8 +424,6 @@ exports.GoogleAuth = async (req, res) => {
         user.avatar = picture;
         await user.save();
       }
-
-
     } else {
       if (!role) {
         profileIncomplete = true;
@@ -387,7 +433,7 @@ exports.GoogleAuth = async (req, res) => {
         name,
         avatar: picture,
         isGoogleUser: true,
-        isEmailVerified: true
+        isEmailVerified: true,
       });
       log.info(`New Google user created: ${email}`);
     }
@@ -401,12 +447,11 @@ exports.GoogleAuth = async (req, res) => {
           subjects: [],
           classesOffered: [],
           qualifications: [],
-          reviews: []
+          reviews: [],
         });
         await mentorProfile.save();
       }
     }
-
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
@@ -420,7 +465,9 @@ exports.GoogleAuth = async (req, res) => {
     if (process.env.NODE_ENV === 'production') {
       options.secure = true;
     }
-    log.info(`Google authentication successful for user: ${email}, profileIncomplete: ${profileIncomplete}`);
+    log.info(
+      `Google authentication successful for user: ${email}, profileIncomplete: ${profileIncomplete}`
+    );
     res
       .status(200)
       .cookie('auth-token', token, options)
@@ -441,7 +488,7 @@ exports.GoogleAuth = async (req, res) => {
           Address: user.Address,
           tenthPercentage: user.tenthPercentage,
           twelfthPercentage: user.twelfthPercentage,
-          mobileNumber: user.mobileNumber
+          mobileNumber: user.mobileNumber,
         },
       });
   } catch (error) {
@@ -465,7 +512,7 @@ exports.GetMe = async (req, res) => {
       Address: user.Address,
       tenthPercentage: user.tenthPercentage,
       twelfthPercentage: user.twelfthPercentage,
-      mobileNumber: user.mobileNumber
+      mobileNumber: user.mobileNumber,
     });
   } catch (error) {
     log.error('Error in Getting User Data:', error);
@@ -474,20 +521,20 @@ exports.GetMe = async (req, res) => {
 };
 exports.UpdateProfile = async (req, res) => {
   try {
-    const { 
-      name, 
-      age, 
-      About, 
-      mobileNumber, 
-      Address, 
-      tenthPercentage, 
-      twelfthPercentage, 
+    const {
+      name,
+      age,
+      About,
+      mobileNumber,
+      Address,
+      tenthPercentage,
+      twelfthPercentage,
       proficiency,
       subjects,
       classesOffered,
-      qualifications
+      qualifications,
     } = req.body.formData || req.body;
-    
+
     const user = await User.findById(req.user._id);
     if (!user) {
       return errorResponse(res, 404, 'User not found');
@@ -498,7 +545,7 @@ exports.UpdateProfile = async (req, res) => {
     }
 
     const updateFields = {};
-    
+
     // Regular user fields validation and assignment
     if (name && name.trim()) {
       if (name.trim().length < 2 || name.trim().length > 50) {
@@ -538,41 +585,36 @@ exports.UpdateProfile = async (req, res) => {
       if (proficiency !== undefined) {
         updateFields.proficiency = proficiency;
       }
-      
+
       if (Array.isArray(subjects)) {
-        updateFields.subjects = subjects.filter(subject => subject && subject.trim());
+        updateFields.subjects = subjects.filter((subject) => subject && subject.trim());
       }
-      
+
       if (Array.isArray(classesOffered)) {
         // Validate classesOffered structure
-        const validClasses = classesOffered.filter(classItem => {
+        const validClasses = classesOffered.filter((classItem) => {
           return (
-            classItem &&
-            typeof classItem === 'object' &&
-            classItem.subject &&
-            classItem.format
+            classItem && typeof classItem === 'object' && classItem.subject && classItem.format
           );
         });
         updateFields.classesOffered = validClasses;
       }
-      
+
       if (Array.isArray(qualifications)) {
         // Validate qualifications structure
-        const validQualifications = qualifications.filter(qual => {
-          return (
-            qual &&
-            typeof qual === 'object' &&
-            qual.degree &&
-            qual.field &&
-            qual.institution
-          );
+        const validQualifications = qualifications.filter((qual) => {
+          return qual && typeof qual === 'object' && qual.degree && qual.field && qual.institution;
         });
         updateFields.qualifications = validQualifications;
       }
     } else {
       // If non-mentor tries to update mentor fields, return error
-      if (proficiency !== undefined || subjects !== undefined || 
-          classesOffered !== undefined || qualifications !== undefined) {
+      if (
+        proficiency !== undefined ||
+        subjects !== undefined ||
+        classesOffered !== undefined ||
+        qualifications !== undefined
+      ) {
         return errorResponse(res, 403, 'Only mentors can update mentor-specific fields');
       }
     }
@@ -595,14 +637,10 @@ exports.UpdateProfile = async (req, res) => {
       return errorResponse(res, 400, 'No changes provided for update');
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id, 
-      updateFields, 
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, updateFields, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedUser) {
       return errorResponse(res, 500, 'Failed to update user profile');
@@ -622,7 +660,7 @@ exports.UpdateProfile = async (req, res) => {
       Address: updatedUser.Address,
       tenthPercentage: updatedUser.tenthPercentage,
       twelfthPercentage: updatedUser.twelfthPercentage,
-      mobileNumber: updatedUser.mobileNumber
+      mobileNumber: updatedUser.mobileNumber,
     };
     if (updatedUser.role === 'mentor') {
       responseData.proficiency = updatedUser.proficiency;
@@ -634,15 +672,14 @@ exports.UpdateProfile = async (req, res) => {
     }
 
     return successResponse(res, 200, 'Profile updated successfully', responseData);
-
   } catch (error) {
     log.error('Error in updating user profile:', error.message);
-    
+
     if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(e => e.message);
+      const validationErrors = Object.values(error.errors).map((e) => e.message);
       return errorResponse(res, 400, `Validation Error: ${validationErrors.join(', ')}`);
     }
-    
+
     if (error.code === 11000) {
       return errorResponse(res, 400, 'Duplicate field value entered');
     }
@@ -660,7 +697,7 @@ exports.updateLocation = async (req, res) => {
     if (!latitude || !longitude) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Please provide both latitude and longitude'
+        message: 'Please provide both latitude and longitude',
       });
     }
     const lat = parseFloat(latitude);
@@ -669,7 +706,7 @@ exports.updateLocation = async (req, res) => {
     if (isNaN(lat) || isNaN(lng)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Latitude and longitude must be valid numbers'
+        message: 'Latitude and longitude must be valid numbers',
       });
     }
     const user = await User.findByIdAndUpdate(
@@ -677,27 +714,27 @@ exports.updateLocation = async (req, res) => {
       { latitude: lat, longitude: lng },
       {
         new: true,
-        runValidators: true
+        runValidators: true,
       }
     );
 
     if (!user) {
       return res.status(404).json({
         status: 'fail',
-        message: 'User not found'
+        message: 'User not found',
       });
     }
 
     res.status(200).json({
       status: 'success',
       data: {
-        user
-      }
+        user,
+      },
     });
   } catch (err) {
     res.status(400).json({
       status: 'fail',
-      message: err.message
+      message: err.message,
     });
   }
 };
@@ -708,7 +745,7 @@ exports.deactivateAccount = async (req, res) => {
       { isAccountDeactivated: true },
       {
         new: true,
-        runValidators: true
+        runValidators: true,
       }
     );
 
@@ -716,9 +753,9 @@ exports.deactivateAccount = async (req, res) => {
       return errorResponse(res, 404, 'user not found');
     }
     res.clearCookie('auth-token');
-    return successResponse(res, 200, "Accound deleted Successfully");
+    return successResponse(res, 200, 'Accound deleted Successfully');
   } catch (error) {
-    log.error("[Email Deactivate] Failed ", error);
-    return errorResponse(res, 500, "Failed to delete user", error);
+    log.error('[Email Deactivate] Failed ', error);
+    return errorResponse(res, 500, 'Failed to delete user', error);
   }
-}
+};

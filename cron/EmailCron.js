@@ -3,7 +3,6 @@ const log = require('../config/logger');
 const { keys, get, del, set } = require('../utils/cacheService');
 const { transporter } = require('../utils/email');
 
-
 async function RetryEmail() {
   const allKeys = keys();
   if (allKeys) {

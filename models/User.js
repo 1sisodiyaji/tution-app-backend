@@ -1,21 +1,24 @@
 const mongoose = require('mongoose');
 
-const reviewSchema = new mongoose.Schema({
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  comment: String,
-  rating: { type: Number, min: 1, max: 5 }
-}, { timestamps: true });
+const reviewSchema = new mongoose.Schema(
+  {
+    studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    comment: String,
+    rating: { type: Number, min: 1, max: 5 },
+  },
+  { timestamps: true }
+);
 const classSchema = new mongoose.Schema({
   subject: String,
   educationLevel: String,
   specificClasses: [String],
-  format: String
+  format: String,
 });
 const qualificationSchema = new mongoose.Schema({
   degree: String,
   field: String,
   institution: String,
-  year: Number
+  year: Number,
 });
 
 const userSchema = new mongoose.Schema(
@@ -45,7 +48,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
       maxLength: 10,
       min: 1000000000,
-      max: 9999999999
+      max: 9999999999,
     },
     age: {
       type: Number,
@@ -87,30 +90,30 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     cloudinary_id: {
-      type: String
+      type: String,
     },
     latitude: {
-      type: Number
+      type: Number,
     },
     longitude: {
-      type: Number
+      type: Number,
     },
     Address: {
-      type: String
+      type: String,
     },
     tenthPercentage: {
-      type: Number
+      type: Number,
     },
     twelfthPercentage: {
-      type: Number
+      type: Number,
     },
     isAccountDeactivated: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isMentorVerified: {
       type: Boolean,
-      default: false
+      default: false,
     },
     proficiency: String,
     rating: { type: Number, default: 0 },

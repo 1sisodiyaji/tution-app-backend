@@ -8,8 +8,8 @@ const transporter = nodemailer.createTransport({
   port: process.env.SMTP_PORT,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
+    pass: process.env.SMTP_PASS,
+  },
 });
 const sendEmail = async (options) => {
   const recipients = Array.isArray(options.email) ? options.email : [options.email];
@@ -21,7 +21,7 @@ const sendEmail = async (options) => {
       to: options.email,
       subject: options.subject,
       text: options.message,
-       html: getEmailTemplate(options.type, options.data),
+      html: getEmailTemplate(options.type, options.data),
     };
 
     try {

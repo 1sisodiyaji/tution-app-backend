@@ -34,7 +34,7 @@ const getEmailTemplate = (type, data) => {
       
           </div>
         `;
-    
+
     case 'passwordResetSuccess':
       return `
           <div style="max-width: 600px; margin: 0 auto; padding: 10px; font-family: Arial, sans-serif; background-color : #f5f7f5;">
