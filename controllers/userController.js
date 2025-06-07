@@ -517,9 +517,6 @@ exports.UpdateProfile = async (req, res) => {
       return errorResponse(res, 400, 'Google users cannot update password');
     }
 
-    log.info(age);
-    log.info(req.body.formData);
-
     const updateFields = {};
     if (name !== undefined) updateFields.name = name || '';
     if (age !== undefined) updateFields.age = Number(age) || 0;
@@ -602,19 +599,6 @@ exports.UpdateProfile = async (req, res) => {
         );
       }
     }
-
-    if (req.file && req.file.publicPath) {
-      const file = req.file;
-      try {
-        const address = await saveImage(file, user.name, 'profile');
-        updateFields.avatar = address;
-      } catch (uploadError) {
-        log.error('Error uploading to cloudinary:', uploadError);
-        return errorResponse(res, 500, 'Failed to upload avatar');
-      }
-    }
-
-    log.info('Update fields:', updateFields);
 
     if (Object.keys(updateFields).length === 0) {
       return errorResponse(res, 400, 'No changes provided for update');
@@ -740,5 +724,55 @@ exports.deactivateAccount = async (req, res) => {
   } catch (error) {
     log.error('[Email Deactivate] Failed ', error);
     return errorResponse(res, 500, 'Failed to delete user', error);
+  }
+};
+exports.UpdateProfilePhoto = async (req, res) => {
+  try {
+    if (!req.processedFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided or file processing failed',
+      });
+    }
+    const userId = req.user.id || req.user._id;
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        avatar: req.processedFile.publicPath,
+        updatedAt: new Date(),
+      },
+      {
+        new: true,
+        select: '-password',
+      }
+    );
+    if (!updatedUser) {
+      cleanupFailedUpload(req.processedFile.path);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    log.info(`[Profile] Successfully updated avatar for user ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile photo updated successfully',
+      data: {
+        user: updatedUser,
+      },
+    });
+  } catch (error) {
+    log.error('[Profile] Error updating profile photo:', error);
+    if (req.processedFile && req.processedFile.path) {
+      cleanupFailedUpload(req.processedFile.path);
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile photo',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
   }
 };

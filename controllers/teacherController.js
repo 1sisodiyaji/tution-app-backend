@@ -60,7 +60,7 @@ exports.GetMentorByUserName = async (req, res) => {
   try {
     const { username } = req.params;
 
-    const mentor = await User.User.findOn({
+    const mentor = await User.findOne({
       username: username.toLowerCase(),
       role: 'mentor',
       isAccountDeactivated: false,

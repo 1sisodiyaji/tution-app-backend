@@ -32,6 +32,7 @@
     "sharp": "^0.34.2",
     "tr46": "^5.1.1",
     "util": "^0.12.5",
+    "uuid": "^11.1.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
     "xss-clean": "^0.1.4"
