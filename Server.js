@@ -16,7 +16,7 @@ const teacherRoutes = require('./routes/mentor.routes.js');
 const path = require('path');
 require('./cron/EmailCron.js');
 
-if (!cluster.isPrimary) {
+if (cluster.isPrimary) {
   log.info(`Primary ${process.pid} is running`);
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
@@ -83,15 +83,15 @@ if (!cluster.isPrimary) {
       hour12: true,
     });
     log.http(`${ip} , ${method} , ${path}, at the ${timestamp}`);
-    if (isProduction) {
-      if (
-        userAgent.toLowerCase().includes('postman') ||
-        ip.includes('127.0.0.1') ||
-        ip.includes('::1')
-      ) {
-        return res.status(403).json({ message: 'Access denied in production mode' });
-      }
-    }
+    // if (isProduction) {
+    //   if (
+    //     userAgent.toLowerCase().includes('postman') ||
+    //     ip.includes('127.0.0.1') ||
+    //     ip.includes('::1')
+    //   ) {
+    //     return res.status(403).json({ message: 'Access denied in production mode' });
+    //   }
+    // }
     next();
   });
   app.options('*', (req, res) => {
