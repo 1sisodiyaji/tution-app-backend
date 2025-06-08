@@ -198,6 +198,34 @@ const validateReviewUpdate = [
 const validateObjectId = (paramName) => [
   param(paramName).isMongoId().withMessage(`Invalid ${paramName}`),
 ];
+const createMeetingValidator = [
+  body('mentorId').isMongoId().withMessage('Invalid mentor ID'),
+  body('calendlyEventId').notEmpty().withMessage('Calendly Event ID is required'),
+  body('eventUri').isURL().withMessage('Valid Event URI is required'),
+  body('eventName').notEmpty().withMessage('Event name is required'),
+  body('scheduled_start_Time')
+    .isISO8601()
+    .toDate()
+    .withMessage('Scheduled start time must be a valid date'),
+  body('scheduled_end_Time')
+    .isISO8601()
+    .toDate()
+    .withMessage('Scheduled end time must be a valid date'),
+  body('meetingLink')
+    .optional({ nullable: true })
+    .isURL()
+    .withMessage('Meeting link must be a valid URL'),
+  body('source').isIn(['website', 'mobile_app', 'admin']).withMessage('Invalid source'),
+  body('attendeeInfo.name').notEmpty().withMessage('Attendee name is required'),
+  body('attendeeInfo.email').isEmail().withMessage('Attendee email must be valid'),
+  body('attendeeInfo.timezone').notEmpty().withMessage('Timezone is required'),
+  body('attendeeInfo.responses').optional().isArray().withMessage('Responses must be an array'),
+  body('attendeeInfo.responses.*.question')
+    .optional()
+    .notEmpty()
+    .withMessage('Question is required'),
+  body('attendeeInfo.responses.*.answer').optional().notEmpty().withMessage('Answer is required'),
+];
 
 module.exports = {
   validateRegister,
@@ -207,4 +235,5 @@ module.exports = {
   validateReview,
   validateReviewUpdate,
   validateObjectId,
+  createMeetingValidator,
 };

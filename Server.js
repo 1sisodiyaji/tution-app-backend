@@ -13,6 +13,7 @@ const log = require('./config/logger.js');
 const connectDB = require('./config/database.js');
 const userRouter = require('./routes/user.routes.js');
 const teacherRoutes = require('./routes/mentor.routes.js');
+const meetingRoutes = require('./routes/Meeting.routes.js');
 const path = require('path');
 require('./cron/EmailCron.js');
 
@@ -137,6 +138,7 @@ if (cluster.isPrimary) {
   );
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/teachers', teacherRoutes);
+  app.use('/api/v1/meetings', meetingRoutes);
   app.get('/', (req, res) => {
     res.send(`Application  is running at http://localhost:${PORT}`);
   });
