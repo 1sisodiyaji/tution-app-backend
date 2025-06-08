@@ -109,14 +109,15 @@ if (cluster.isPrimary) {
   connectDB();
   const PORT = process.env.PORT || 5000;
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
+    windowMs: 15 * 60 * 100,
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
       success: false,
-      message: 'Too many authentication attempts, please try again later after 15 mins.',
+      message: 'Too many Request , please try again later after 15 mins.',
     },
+    skip: (req, res) => req.method === 'GET',
   });
   app.use(limiter);
   app.use(helmet());
