@@ -31,4 +31,6 @@ router.put(
   cleanupOldAvatar,
   userController.UpdateProfilePhoto
 );
+router.post('/mentor/:mentorId/review', protect, userController.addReview);
+
 module.exports = router;

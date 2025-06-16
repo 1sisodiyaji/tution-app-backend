@@ -9,6 +9,7 @@ const { del } = require('../utils/cacheService');
 const sendEmailViaWorker = require('../workers/emailDispatcher');
 const { generateUniqueUsername } = require('../utils/GenrateUsername');
 const saveImage = require('../utils/saveImage');
+const mongoose = require('mongoose');
 
 exports.Register = async (req, res) => {
   try {
@@ -774,5 +775,50 @@ exports.UpdateProfilePhoto = async (req, res) => {
       message: 'Failed to update profile photo',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
+  }
+};
+exports.addReview = async (req, res) => {
+  try {
+    const { mentorId } = req.params;
+    const { rating, comment } = req.body;
+    const studentId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(mentorId)) {
+      return res.status(400).json({ message: 'Invalid mentor ID' });
+    }
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    const mentor = await User.findById(mentorId);
+    if (!mentor || mentor.role !== 'mentor') {
+      return res.status(404).json({ message: 'Mentor not found' });
+    }
+
+    const alreadyReviewed = mentor.reviews.some((rev) => rev.studentId.toString() === studentId);
+
+    if (alreadyReviewed) {
+      return res.status(400).json({ message: 'You have already reviewed this mentor' });
+    }
+
+    mentor.reviews.push({ studentId, rating, comment });
+    const totalRating = mentor.reviews.reduce((sum, r) => sum + r.rating, 0);
+    mentor.rating = totalRating / mentor.reviews.length;
+
+    await mentor.save();
+
+    res.status(201).json({
+      message: 'Review added successfully',
+      updatedMentor: {
+        id: mentor._id,
+        username: mentor.username,
+        rating: mentor.rating,
+        reviews: mentor.reviews,
+      },
+    });
+  } catch (error) {
+    console.error('Add Review Error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };

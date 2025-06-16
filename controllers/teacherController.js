@@ -31,20 +31,32 @@ exports.GetAllMentors = async (req, res) => {
         'name avatar username rating proficiency latitude longitude subjects classesOffered qualifications reviews'
       )
       .populate('reviews.studentId', 'name avatar')
-      .sort({ rating: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
     const total = await User.countDocuments(filter);
 
+    const mentorsWithAvgRating = mentors.map((mentor) => {
+      const ratings = mentor.reviews?.map((r) => r.rating) || [];
+      const avgRating = ratings.length
+        ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1)
+        : 0;
+
+      return {
+        ...mentor.toObject(),
+        rating: parseFloat(avgRating),
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: mentors,
+      data: mentorsWithAvgRating,
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / parseInt(limit)),
         total,
-        hasNext: skip + mentors.length < total,
+        hasNext: skip + mentorsWithAvgRating.length < total,
         hasPrev: parseInt(page) > 1,
       },
     });

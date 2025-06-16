@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const log = require('../config/logger');
 
 exports.createAdmin = async (req, res) => {
   try {
@@ -124,15 +125,13 @@ exports.getAllUsers = async (req, res) => {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = req.query;
-
+    log.info(req.query);
     const filter = { role: { $ne: 'admin' } };
-
     if (role && role !== 'all') filter.role = role;
     if (status === 'active') filter.isAccountDeactivated = false;
     if (status === 'deactivated') filter.isAccountDeactivated = true;
     if (verified === 'true') filter.isMentorVerified = true;
     if (verified === 'false') filter.isMentorVerified = false;
-
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -140,17 +139,16 @@ exports.getAllUsers = async (req, res) => {
         { username: { $regex: search, $options: 'i' } },
       ];
     }
-
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
+    log.info('[Filter] ', filter, sortOptions);
     const users = await User.find(filter)
       .select('-password -resetPasswordToken -emailVerificationToken')
       .sort(sortOptions)
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
       .lean();
-
+    log.info(users);
     const totalUsers = await User.countDocuments(filter);
     const totalPages = Math.ceil(totalUsers / parseInt(limit));
 
@@ -399,7 +397,7 @@ exports.getSystemAnalytics = async (req, res) => {
   try {
     // Top performing mentors
     const topMentors = await User.find({ role: 'mentor' })
-      .select('name email rating reviews')
+      .select('name email username avatar rating reviews')
       .sort({ rating: -1 })
       .limit(10)
       .lean();
@@ -413,25 +411,12 @@ exports.getSystemAnalytics = async (req, res) => {
       { $limit: 10 },
     ]);
 
-    // User activity over time
-    const userActivity = await User.aggregate([
-      { $match: { role: { $ne: 'admin' } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' },
-          },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1 } },
-    ]);
-
     res.status(200).json({
       topMentors: topMentors.map((mentor) => ({
         id: mentor._id,
         name: mentor.name,
+        username: mentor.username,
+        avatar: mentor.avatar,
         email: mentor.email,
         rating: mentor.rating,
         totalReviews: mentor.reviews.length,
@@ -440,7 +425,6 @@ exports.getSystemAnalytics = async (req, res) => {
         subject: item._id,
         mentorCount: item.count,
       })),
-      userActivity,
     });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching system analytics', error: err.message });
@@ -516,7 +500,6 @@ exports.exportUsersData = async (req, res) => {
       .lean();
 
     if (format === 'csv') {
-      // Convert to CSV format
       const csvHeaders = 'ID,Name,Email,Role,Status,Verified,Created At\n';
       const csvData = users
         .map(
@@ -524,7 +507,6 @@ exports.exportUsersData = async (req, res) => {
             `${user._id},${user.name},${user.email},${user.role},${user.isAccountDeactivated ? 'Deactivated' : 'Active'},${user.isMentorVerified ? 'Yes' : 'No'},${user.createdAt}`
         )
         .join('\n');
-
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename=users_export.csv');
       res.status(200).send(csvHeaders + csvData);
