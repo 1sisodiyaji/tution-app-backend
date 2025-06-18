@@ -822,3 +822,97 @@ exports.addReview = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+exports.editReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { rating, comment } = req.body;
+    const userId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({ message: 'Invalid review ID' });
+    }
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+    const mentor = await User.findOne({ 'reviews._id': reviewId });
+    if (!mentor) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+    const review = mentor.reviews.id(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+    if (review.studentId.toString() !== userId.toString()) {
+      return res.status(403).json({ message: 'You can only edit your own reviews' });
+    }
+    review.rating = rating;
+    review.comment = comment;
+    const totalRating = mentor.reviews.reduce((sum, r) => sum + r.rating, 0);
+    mentor.rating = totalRating / mentor.reviews.length;
+
+    await mentor.save();
+
+    res.status(200).json({
+      message: 'Review updated successfully',
+      updatedMentor: {
+        id: mentor._id,
+        username: mentor.username,
+        rating: mentor.rating,
+        reviews: mentor.reviews,
+      },
+    });
+  } catch (error) {
+    console.error('Edit Review Error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+exports.deleteReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({ message: 'Invalid review ID' });
+    }
+    const mentor = await User.findOne({ 'reviews._id': reviewId });
+    if (!mentor) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+    const review = mentor.reviews.id(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+    const isReviewOwner = review.studentId.toString() === userId.toString();
+    const isMentorProfile = mentor._id.toString() === userId.toString() && userRole === 'mentor';
+
+    if (!isReviewOwner && !isMentorProfile) {
+      return res.status(403).json({
+        message: 'You can only delete your own reviews or reviews on your mentor profile',
+      });
+    }
+    mentor.reviews.pull(reviewId);
+    if (mentor.reviews.length > 0) {
+      const totalRating = mentor.reviews.reduce((sum, r) => sum + r.rating, 0);
+      mentor.rating = totalRating / mentor.reviews.length;
+    } else {
+      mentor.rating = 0;
+    }
+
+    await mentor.save();
+
+    res.status(200).json({
+      message: 'Review deleted successfully',
+      updatedMentor: {
+        id: mentor._id,
+        username: mentor.username,
+        rating: mentor.rating,
+        reviews: mentor.reviews,
+      },
+    });
+  } catch (error) {
+    console.error('Delete Review Error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

@@ -32,5 +32,7 @@ router.put(
   userController.UpdateProfilePhoto
 );
 router.post('/mentor/:mentorId/review', protect, userController.addReview);
+router.put('/review/:reviewId', protect, userController.editReview);
+router.delete('/review/:reviewId', protect, userController.deleteReview);
 
 module.exports = router;
