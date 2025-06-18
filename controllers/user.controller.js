@@ -207,6 +207,7 @@ exports.Login = async (req, res) => {
           tenthPercentage: user.tenthPercentage,
           twelfthPercentage: user.twelfthPercentage,
           mobileNumber: user.mobileNumber,
+          isMentorVerified: user.isMentorVerified,
         },
       });
   } catch (error) {
@@ -462,6 +463,7 @@ exports.GoogleAuth = async (req, res) => {
           tenthPercentage: user.tenthPercentage,
           twelfthPercentage: user.twelfthPercentage,
           mobileNumber: user.mobileNumber,
+          isMentorVerified: user.isMentorVerified,
         },
       });
   } catch (error) {
@@ -487,6 +489,7 @@ exports.GetMe = async (req, res) => {
       tenthPercentage: user.tenthPercentage,
       twelfthPercentage: user.twelfthPercentage,
       mobileNumber: user.mobileNumber,
+      isMentorVerified: user.isMentorVerified,
     });
   } catch (error) {
     log.error('Error in Getting User Data:', error);
@@ -629,6 +632,7 @@ exports.UpdateProfile = async (req, res) => {
       tenthPercentage: updatedUser.tenthPercentage,
       twelfthPercentage: updatedUser.twelfthPercentage,
       mobileNumber: updatedUser.mobileNumber,
+      isMentorVerified: updatedUser.isMentorVerified,
     };
     if (updatedUser.role === 'mentor') {
       responseData.proficiency = updatedUser.proficiency;

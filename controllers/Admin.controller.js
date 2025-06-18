@@ -1,7 +1,6 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const log = require('../config/logger');
 
 exports.createAdmin = async (req, res) => {
   try {
@@ -125,7 +124,7 @@ exports.getAllUsers = async (req, res) => {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = req.query;
-    log.info(req.query);
+
     const filter = { role: { $ne: 'admin' } };
     if (role && role !== 'all') filter.role = role;
     if (status === 'active') filter.isAccountDeactivated = false;
@@ -141,14 +140,14 @@ exports.getAllUsers = async (req, res) => {
     }
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-    log.info('[Filter] ', filter, sortOptions);
+
     const users = await User.find(filter)
       .select('-password -resetPasswordToken -emailVerificationToken')
       .sort(sortOptions)
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
       .lean();
-    log.info(users);
+
     const totalUsers = await User.countDocuments(filter);
     const totalPages = Math.ceil(totalUsers / parseInt(limit));
 
