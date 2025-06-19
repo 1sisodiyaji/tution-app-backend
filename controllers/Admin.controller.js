@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const log = require('../config/logger');
 
 exports.createAdmin = async (req, res) => {
   try {
@@ -126,7 +127,11 @@ exports.getAllUsers = async (req, res) => {
     } = req.query;
 
     const filter = { role: { $ne: 'admin' } };
-    if (role && role !== 'all') filter.role = role;
+    if (role && role !== 'all') {
+      filter.role = role;
+    } else {
+      filter.role = { $ne: 'admin' };
+    }
     if (status === 'active') filter.isAccountDeactivated = false;
     if (status === 'deactivated') filter.isAccountDeactivated = true;
     if (verified === 'true') filter.isMentorVerified = true;
