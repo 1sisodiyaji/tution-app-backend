@@ -18,7 +18,7 @@ const adminRoutes = require('./routes/Admin.routes.js');
 const path = require('path');
 require('./cron/EmailCron.js');
 
-if (cluster.isPrimary) {
+if (!cluster.isPrimary) {
   log.info(`Primary ${process.pid} is running`);
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();

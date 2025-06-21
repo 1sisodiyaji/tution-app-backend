@@ -125,7 +125,6 @@ exports.getAllUsers = async (req, res) => {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = req.query;
-
     const filter = { role: { $ne: 'admin' } };
     if (role && role !== 'all') {
       filter.role = role;
@@ -152,7 +151,6 @@ exports.getAllUsers = async (req, res) => {
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
       .lean();
-
     const totalUsers = await User.countDocuments(filter);
     const totalPages = Math.ceil(totalUsers / parseInt(limit));
 
