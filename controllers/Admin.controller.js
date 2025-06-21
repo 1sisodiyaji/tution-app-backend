@@ -304,8 +304,7 @@ exports.getUserProfileCompletionStatus = async (req, res) => {
       'classesOffered',
       'qualifications',
       'Address',
-      'tenthPercentage',
-      'twelfthPercentage',
+      'teachingExperiences',
       'isEmailVerified',
     ];
 

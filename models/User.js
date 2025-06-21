@@ -96,9 +96,6 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    cloudinary_id: {
-      type: String,
-    },
     latitude: {
       type: Number,
     },
@@ -108,12 +105,15 @@ const userSchema = new mongoose.Schema(
     Address: {
       type: String,
     },
-    tenthPercentage: {
-      type: Number,
-    },
-    twelfthPercentage: {
-      type: Number,
-    },
+    teachingExperiences: [
+      {
+        institution: { type: String },
+        subject: { type: String },
+        from: { type: Date },
+        to: { type: Date },
+        currentlyTeaching: { type: Boolean, default: false },
+      },
+    ],
     isAccountDeactivated: {
       type: Boolean,
       default: false,

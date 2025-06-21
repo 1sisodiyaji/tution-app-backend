@@ -204,8 +204,7 @@ exports.Login = async (req, res) => {
           latitude: user.latitude,
           longitude: user.longitude,
           Address: user.Address,
-          tenthPercentage: user.tenthPercentage,
-          twelfthPercentage: user.twelfthPercentage,
+          teachingExperience: user.teachingExperience,
           mobileNumber: user.mobileNumber,
           isMentorVerified: user.isMentorVerified,
         },
@@ -460,8 +459,7 @@ exports.GoogleAuth = async (req, res) => {
           latitude: user.latitude,
           longitude: user.longitude,
           Address: user.Address,
-          tenthPercentage: user.tenthPercentage,
-          twelfthPercentage: user.twelfthPercentage,
+          teachingExperience: user.teachingExperience,
           mobileNumber: user.mobileNumber,
           isMentorVerified: user.isMentorVerified,
         },
@@ -486,8 +484,7 @@ exports.GetMe = async (req, res) => {
       latitude: user.latitude,
       longitude: user.longitude,
       Address: user.Address,
-      tenthPercentage: user.tenthPercentage,
-      twelfthPercentage: user.twelfthPercentage,
+      teachingExperience: user.teachingExperience,
       mobileNumber: user.mobileNumber,
       isMentorVerified: user.isMentorVerified,
     });
@@ -504,8 +501,7 @@ exports.UpdateProfile = async (req, res) => {
       About,
       mobileNumber,
       Address,
-      tenthPercentage,
-      twelfthPercentage,
+      teachingExperiences,
       proficiency,
       subjects,
       classesOffered,
@@ -533,22 +529,24 @@ exports.UpdateProfile = async (req, res) => {
       updateFields.mobileNumber = mobile || 0;
     }
     if (Address !== undefined) updateFields.Address = Address || '';
-    if (tenthPercentage !== undefined) {
-      const tenth = Number(tenthPercentage);
-      if (tenth && (tenth < 0 || tenth > 100)) {
-        return errorResponse(res, 400, 'Tenth percentage must be between 0 and 100');
-      }
-      updateFields.tenthPercentage = tenth || 0;
-    }
-    if (twelfthPercentage !== undefined) {
-      const twelfth = Number(twelfthPercentage);
-      if (twelfth && (twelfth < 0 || twelfth > 100)) {
-        return errorResponse(res, 400, 'Twelfth percentage must be between 0 and 100');
-      }
-      updateFields.twelfthPercentage = twelfth || 0;
-    }
 
     if (user.role === 'mentor') {
+      if (teachingExperiences !== undefined) {
+        if (!Array.isArray(teachingExperiences)) {
+          return errorResponse(res, 400, 'Teaching experience must be an array');
+        }
+
+        const validExperiences = teachingExperiences.filter((exp) => {
+          return (
+            exp &&
+            typeof exp === 'object' &&
+            exp.subject &&
+            exp.institution &&
+            (exp.from || exp.currentlyTeaching)
+          );
+        });
+        updateFields.teachingExperiences = validExperiences;
+      }
       if (proficiency !== undefined) {
         updateFields.proficiency = proficiency;
       }
@@ -629,10 +627,7 @@ exports.UpdateProfile = async (req, res) => {
       latitude: updatedUser.latitude,
       longitude: updatedUser.longitude,
       Address: updatedUser.Address,
-      tenthPercentage: updatedUser.tenthPercentage,
-      twelfthPercentage: updatedUser.twelfthPercentage,
       mobileNumber: updatedUser.mobileNumber,
-      isMentorVerified: updatedUser.isMentorVerified,
     };
     if (updatedUser.role === 'mentor') {
       responseData.proficiency = updatedUser.proficiency;
@@ -641,8 +636,10 @@ exports.UpdateProfile = async (req, res) => {
       responseData.classesOffered = updatedUser.classesOffered;
       responseData.qualifications = updatedUser.qualifications;
       responseData.reviews = updatedUser.reviews;
+      responseData.isMentorVerified = updatedUser.isMentorVerified;
+      responseData.teachingExperiences = updatedUser.teachingExperiences;
     }
-
+    log.info(responseData);
     return successResponse(res, 200, 'Profile updated successfully', responseData);
   } catch (error) {
     log.error('Error in updating user profile:', error.message);

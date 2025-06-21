@@ -75,16 +75,6 @@ const validateMentorProfile = [
     .isIn(['Beginner', 'Intermediate', 'Advanced', 'Expert'])
     .withMessage('Proficiency must be one of: Beginner, Intermediate, Advanced, Expert'),
 
-  body('tenthPercentage')
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage('10th percentage must be between 0 and 100'),
-
-  body('twelfthPercentage')
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage('12th percentage must be between 0 and 100'),
-
   body('locality')
     .optional()
     .trim()
